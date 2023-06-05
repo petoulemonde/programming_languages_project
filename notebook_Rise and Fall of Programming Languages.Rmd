@@ -1,0 +1,155 @@
+---
+title: "notebook_Rise and Fall of Programming Languages"
+author: "Pierre-Etienne TOULEMONDE"
+date: "2022-12-10"
+output:
+  html_document:
+    toc: TRUE
+    number_sections: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Programming Languages study
+
+<u>Tags</u>: Data manipulation, Data visualization, Importing & cleaning data
+
+<u>Principal packages:</u>: tidyverse.
+
+![](images/trendlines.jpg)
+
+It’s important to stay informed about trends in programming languages and technologies. Knowing what languages are growing or shrinking can help you decide where to invest. An excellent source to gain a better understanding of popular technologies is [Stack Overflow](https://stackoverflow.com/). Stack overflow is an online question-and-answer site for coding topics. By looking at the number of questions about each technology, you can get an idea of how many people are using it. The dataset has been uploaded to the [Stack Exchange site](https://data.stackexchange.com/). Below is an overview of the data that is available to you:
+
+::: {style="background-color: #efebe4; color: #05192d; text-align:left; vertical-align: middle; padding: 15px 25px 15px 25px; line-height: 1.6;"}
+::: {style="font-size:20px"}
+<b>datasets/stack_overflow_data.csv</b> 
+:::
+<ul>
+<li><b>year:</b> The year the question was asked.</li>
+<li><b>tag:</b> A word or phrase that describes the topic of the question.</li>
+<li><b>number:</b> The number of questions with a certain tag in that year.</li>
+<li><b>year_total:</b> The total number of questions asked in that year.</li>
+</ul>
+:::
+
+From there, the aim is to explore and manipulate existing data to answer these questions: 
+
+1. What fraction of the total number of questions asked in 2019 had the tag R?
+
+2. What were the five most asked tags over the last 5 years (2015-2020)?
+
+## Data description
+
+```{r importations, warning = FALSE}
+# ---------- 0. Package importation ----------
+# install.packages("librarian")
+librarian::shelf(tidyverse, skimr, quiet = TRUE)
+
+# ---------- 1. Data collection ----------
+df_stack_overflow <- read.csv("datasets/stack_overflow_data.csv")
+```
+
+### stack_overflow dataset
+
+```{r general_explorations, warning = FALSE}
+# ---------- 2. Data exploration ----------
+print(data.frame(
+  Variables = c("Number of lines", 
+               "Nombre de columns",
+               "Nombre de continuous columns", 
+               "Nombre de discretous variables", 
+               "Memory allocation"),
+  df_stack_overflow = c(nrow(df_stack_overflow), 
+                  ncol(df_stack_overflow),
+                  length(select_if(df_stack_overflow,is.numeric)), 
+                  length(select(df_stack_overflow, -names(select_if(df_stack_overflow, is.numeric) ) ) ), 
+                  paste(as.character(round(object.size(df_stack_overflow)/1024), 2), "kb") ) ) )
+```
+
+The ten first row of clinic_dataset are :
+
+```{r head_df_stack_overflow, warning = FALSE}
+head(df_stack_overflow, n = 10)
+```
+
+About missing data :
+
+```{r missing_df_stack_overflow, warning = FALSE}
+print(data.frame(variables = names(df_stack_overflow), 
+                 n_NA = apply(df_stack_overflow, 2, function(.x) {sum(is.na(.x) )} ), 
+                 percent_NA = apply(df_stack_overflow, 2, 
+                                    function(.x) { paste(round(sum(is.na(.x) ) / 
+                                                                 nrow(df_stack_overflow) * 100, 2) , "%") } ) ) )
+```
+
+#### Graphic description
+```{r graph_df_stack_overflow_1, warning = FALSE}
+df_stack_overflow %>%
+  ggplot(aes(year, y = year_total, fill = year)) +
+    geom_col() +
+    theme(legend.position = "none") +
+    labs(x = "Year",
+         y = "Total number of questions", 
+         title = "Total number of questions per year")
+```
+
+```{r graph_df_stack_overflow_2, warning = FALSE}
+df_stack_overflow %>%
+  group_by(year) %>%
+  arrange(desc(number)) %>%
+  slice_max(number, n = 5) %>%
+  ggplot( aes(y = tag, x = log(number), fill = tag)) +
+    geom_col(position = position_dodge2() ) +
+    facet_wrap(~year, scales="free_y") +
+    theme(legend.position="none") +
+  labs(x = "Number of questions (logarithm scale)", 
+       y= "Tags", 
+       title = "Number of questions per tags, facetted by year")
+```
+
+## Questions
+
+As a reminder, questions are :
+
+1. What fraction of the total number of questions asked in 2019 had the tag R?
+
+2. What were the five most asked tags over the last 5 years (2015-2020)?
+
+### Q1. What fraction of the total number of questions asked in 2019 had the tag R?
+
+```{r Q1_fraction_total_number_questions_2019_tag_r}
+# ---------- 3. Q1 : r_percentage ----------
+r_percentage <- df_stack_overflow %>%
+    filter(year == 2019) %>%
+    filter(tag == "r") %>%
+    summarize(fraction = number/year_total*100)
+print(r_percentage)
+```
+
+The fraction of the total number of questions asked in 2019 with the tag R is `r r_percentage` .
+
+### Q2. What were the five most asked tags over the last 5 years (2015-2020)?
+```{r Q2_top_5_most_asked_tags}
+# ---------- 4. Q2 : 5 most ask tags ----------
+highest_tags <- df_stack_overflow %>%
+    filter(year >= 2015, year <= 2020) %>%
+    group_by(tag) %>%
+    summarise(n = sum(number)) %>%
+    arrange(desc(n)) %>% slice(1:5) %>% pull(tag)
+
+highest_tags <- as.character(highest_tags)
+print(highest_tags)
+```
+
+The five most askeg tags over the last 5 years (2015-2020) are `r print(highest_tags)` .
+
+# Session
+
+```{r session_info}
+print( paste0( "System version : ", sessionInfo()$running, ", ", sessionInfo()$platform) )
+print( paste0( R.version$version.string, " - ", R.version$nickname ) )
+
+for (package in c( sessionInfo()$basePkgs, objects(sessionInfo()$otherPkgs) ) ) {
+  print( paste0( package, " : ", package, "_", packageVersion(package) ) ) }
